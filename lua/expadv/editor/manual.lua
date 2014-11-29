@@ -289,80 +289,45 @@ end
 
 ------------------------------------------- ------------------------------------------- -------------------------------------------
 
-function EXPADV.Editor.OpenHelper( )
+function EXPADV.AddHelperTab( TabSheet, ToolBar )
+	
+		local NodeList = vgui.Create( "DTree" )
+		NodeList:SetVisible( false )
+		NodeList:Dock( FILL )
 
-	-- INSTANCE:
-		if IsValid( EXPADV.Editor.Manual ) then
-			EXPADV.Editor.Manual:SetVisible( true )
-			EXPADV.Editor.Manual:Center( )
-			EXPADV.Editor.Manual:MakePopup( )
-			return
-		end
-
-	-- FRAME:
-
-		local Frame = vgui.Create( "EA_Frame" )
-		Frame:SetText( "Expression Advanced 2 - User Manual" )
-		Frame:SetSize( ScrW( ) - 50, ScrH( ) - 50 )
-		Frame:DockPadding( 5, 24 + 5, 5, 5 )
-		Frame:SetSizable( true )
-		Frame:Center( )
-		Frame:MakePopup( )
-
-		EXPADV.Editor.Manual = Frame
-
-	-- CLOSE:
-
-		function Frame:Close( )
-			self:SetVisible( false )
-		end
-
-	-- TAB'S:
-
-		local TabSheet = Frame:Add( "DPropertySheet" )
-		TabSheet:Dock( FILL )
-
-		local WikiTabSheet = vgui.Create( "DHTML" )
-		WikiTabSheet:OpenURL( "https://github.com/Rusketh/ExpAdv2/wiki/Syntax" )
-		WikiTabSheet:DockMargin( 5, 5, 5 ,5 )
-		WikiTabSheet:Dock( FILL )
-
-		TabSheet:AddSheet( "Syntax", WikiTabSheet, nil, true, true, "Syntax documentation." )
-
-		local ComponentTabSheet = vgui.Create( "DPanel" )
-		ComponentTabSheet:DockMargin( 5, 5, 5 ,5 )
-		ComponentTabSheet:Dock( FILL )
-
-		local NodeList = ComponentTabSheet:Add( "DTree" )
-		NodeList:SetWide( 200 )
-		NodeList:DockMargin( 5, 5, 5 ,5 )
-		NodeList:Dock( LEFT )
-
-		local ComponentCanvas = ComponentTabSheet:Add( "DScrollPanel" )
-		ComponentCanvas:DockMargin( 5, 5, 5 ,5 )
-		ComponentCanvas:Dock( FILL )
-
-		TabSheet:AddSheet( "Components", ComponentTabSheet, nil, true, true, "Components & Classes" )
-
-		local BrowserTabSheet = vgui.Create( "DPanel" )
-		BrowserTabSheet:DockMargin( 5, 5, 5 ,5 )
-		BrowserTabSheet:Dock( FILL )
-
-		local BrowserCanvas = BrowserTabSheet:Add( "DScrollPanel" )
-		BrowserCanvas:DockMargin( 5, 5, 5 ,5 )
+		local BrowserCanvas = vgui.Create(  "DScrollPanel" )
+		BrowserCanvas:SetVisible( false )
 		BrowserCanvas:Dock( FILL )
 
 		local BrowserSheet = BrowserCanvas:Add( "EA_HelpPage" )
 		BrowserSheet:Dock( FILL )
 
-		TabSheet:AddSheet( "Browser", BrowserTabSheet, nil, true, true, "Browse" )
+	-- ToolBar:
+		ToolBar:SetupButton( "Open user manual", Material( "fugue/question.png" ), LEFT,
+			function( )
+				if !TabSheet.NodeTab then
+					TabSheet.NodeTab = TabSheet:AddSheet( "Components", NodeList, nil, true, true, "Best place for help." ).Tab
+					TabSheet:SetActiveTab( TabSheet.NodeTab )
+				end
+			end ) 
+
+		ToolBar:SetupButton( "Open browser", Material( "fugue/rocket-fly.png" ), LEFT,
+			function( )
+				-- if !TabSheet.BrowserTab then
+				-- 	TabSheet.BrowserTab = TabSheet:AddSheet( "Browser", BrowserCanvas, nil, true, true, "Browse" ).Tab
+				-- 	TabSheet:SetActiveTab( TabSheet.BrowserTab )
+				-- end
+
+				local CodeTabs = ToolBar:GetParent().TabHolder
+				CodeTabs:SetActiveTab( CodeTabs:AddSheet( "Browser", BrowserCanvas, nil, true, true, "Browse" ).Tab )
+			end ) 
 
 	-- COMPONENTS & CLASSES:
 
 		local ClassPanels = { }
 		local ComponentPanels = { }
 
-		function Frame:GetComponentPanel( Name, bNoCreate )
+		local function GetComponentPanel( Name, bNoCreate )
 			if !Name then
 				Name = "core"
 			elseif type( Name ) == "table" then
@@ -374,14 +339,21 @@ function EXPADV.Editor.OpenHelper( )
 			end
 
 			if !bNoCreate then
-				local Pnl = vgui.Create( "EA_HelpPage" )
-				Pnl:SetVisible( false )
+				local ScrollPanel = vgui.Create( "DScrollPanel" )
+				ScrollPanel:Dock( FILL )
+				ScrollPanel:SetVisible(false)
+
+				local Pnl = ScrollPanel:Add( "EA_HelpPage" )
+				Pnl:Dock( FILL )
+				Pnl.ScrollPanel = ScrollPanel
+
 				ComponentPanels[Name] = Pnl
+
 				return Pnl
 			end
 		end
 
-		function Frame:GetClassPanel( Name, bNoCreate )
+		local function GetClassPanel( Name, bNoCreate )
 			if !Name then return end
 			
 			if ClassPanels[Name] then
@@ -389,8 +361,14 @@ function EXPADV.Editor.OpenHelper( )
 			end
 
 			if !bNoCreate then
-				local Pnl = vgui.Create( "EA_HelpPage" )
-				Pnl:SetVisible( false )
+				local ScrollPanel = vgui.Create( "DScrollPanel" )
+				ScrollPanel:DockMargin( 5, 5, 5 ,5 )
+				ScrollPanel:Dock( FILL )
+				ScrollPanel:SetVisible(false)
+
+				local Pnl = ScrollPanel:Add( "EA_HelpPage" )
+				Pnl:Dock( FILL )
+				Pnl.ScrollPanel = ScrollPanel
 				ClassPanels[Name] = Pnl
 				return Pnl
 			end
@@ -398,46 +376,20 @@ function EXPADV.Editor.OpenHelper( )
 
 		local SearchQuery = ""
 
-		function Frame:SetActiveComponentPage( Name )
-			if IsValid(self.ActivePage) then
-				self.ActivePage:SetParent( )
-				self.ActivePage:Dock( NODOCK )
-				self.ActivePage:SetVisible( false )
-			end
-
-			local Page = self:GetComponentPanel( Name, true )
+		local function SetActiveComponentPage( Name )
+			local Page = GetComponentPanel( Name, true )
 			if !IsValid( Page ) then return end
 
-			Page:SetParent( ComponentCanvas:GetCanvas( ) )
-
-			Page:Dock( FILL )
-			Page:SetVisible( true )
-			Page:Search( SearchQuery )
-			Page:PerformLayout( )
-			ComponentCanvas:PerformLayout( )
-
-			self.ActivePage = Page
+			local CodeTabs = ToolBar:GetParent().TabHolder
+			CodeTabs:SetActiveTab( CodeTabs:AddSheet( Name, Page.ScrollPanel, nil, true, true, "Help: " .. Name ).Tab )
 		end
 
-		function Frame:SetActiveClassPage( Name )
-			if IsValid(self.ActivePage) then
-				self.ActivePage:SetParent( )
-				self.ActivePage:Dock( NODOCK )
-				self.ActivePage:SetVisible( false )
-			end
-
-			local Page = self:GetClassPanel( Name, true )
+		local function SetActiveClassPage( Name )
+			local Page = GetClassPanel( Name, true )
 			if !IsValid( Page ) then return end
 
-			Page:SetParent( ComponentCanvas:GetCanvas( ) )
-
-			Page:Dock( FILL )
-			Page:SetVisible( true )
-			Page:Search( SearchQuery )
-			Page:PerformLayout( )
-			ComponentCanvas:PerformLayout( )
-
-			self.ActivePage = Page
+			local CodeTabs = ToolBar:GetParent().TabHolder
+			CodeTabs:SetActiveTab( CodeTabs:AddSheet( Name, Page.ScrollPanel, nil, true, true, "Help: " .. Name ).Tab )
 		end
 
 	-- NODES:
@@ -447,7 +399,7 @@ function EXPADV.Editor.OpenHelper( )
 		local RootComponentNode = NodeList:AddNode( "Components" )
 		RootComponentNode:SetExpanded( true )
 
-		function Frame:GetComponentNode( Name, bNoCreate )
+		local function GetComponentNode( Name, bNoCreate )
 			if !Name then
 				Name = "core"
 			elseif type( Name ) == "table" then
@@ -468,20 +420,20 @@ function EXPADV.Editor.OpenHelper( )
 
 	-- COMPONENT PAGES:
 
-		local CoreComponentPage = Frame:GetComponentPanel( "core" )
+		local CoreComponentPage = GetComponentPanel( "core" )
 		
 		CoreComponentPage:GetInfoSheet( ):AddLine( "Component", "Core" )
 		CoreComponentPage:GetInfoSheet( ):AddLine( "Author", "Rusketh" ) 
 		CoreComponentPage:GetInfoSheet( ):AddLine( "Description", "Primary structure of Expression Advanced 2." )
 		
-		local CoreComponentNode = Frame:GetComponentNode( "core" )
+		local CoreComponentNode = GetComponentNode( "core" )
 
 		function CoreComponentNode:DoClick( )
-			Frame:SetActiveComponentPage( "core" )
+			SetActiveComponentPage( "core" )
 		end
 
 		for _, Component in pairs( EXPADV.Components ) do
-			local Page = Frame:GetComponentPanel( Component.Name )
+			local Page = GetComponentPanel( Component.Name )
 
 			Page:GetInfoSheet( ):AddLine( "Component", Component.Name )
 			Page:GetInfoSheet( ):AddLine( "Author", Component.Author or "Unkown" ) 
@@ -496,10 +448,10 @@ function EXPADV.Editor.OpenHelper( )
 				end
 			end
 
-			local Node = Frame:GetComponentNode( Component.Name )
+			local Node = GetComponentNode( Component.Name )
 
 			function Node:DoClick( )
-				Frame:SetActiveComponentPage( Component.Name )
+				SetActiveComponentPage( Component.Name )
 			end
 		end
 
@@ -518,14 +470,14 @@ function EXPADV.Editor.OpenHelper( )
 				continue
 			end
 			
-			local Page = Frame:GetComponentPanel( Operator.Component )
+			local Page = GetComponentPanel( Operator.Component )
 
 			Page:GetOperatorSheet( ):AddLine( GetAvalibility(Operator), Operator.Type or "", EXPADV.TypeName( Operator.Return or "" ) or "void", Operator.Example, Operator.Description )
 			BrowserSheet:GetOperatorSheet( ):AddLine( GetAvalibility(Operator), Operator.Type or "", EXPADV.TypeName( Operator.Return or "" ) or "void", Operator.Example, Operator.Description )
 		end
 
 		for Sig, Operator in pairs( CLASS_OPERATORS ) do
-			local Page = Frame:GetClassPanel( Operator.AttachedClass )
+			local Page = GetClassPanel( Operator.AttachedClass )
 
 			Page:GetOperatorSheet( ):AddLine( GetAvalibility(Operator), Operator.Type or "", EXPADV.TypeName( Operator.Return or "" ) or "void", Operator.Example, Operator.Description )
 			BrowserSheet:GetOperatorSheet( ):AddLine( GetAvalibility(Operator), Operator.Type or "", EXPADV.TypeName( Operator.Return or "" ) or "void", Operator.Example, Operator.Description )
@@ -542,7 +494,7 @@ function EXPADV.Editor.OpenHelper( )
 				continue
 			end
 
-			local Page = Frame:GetComponentPanel( Operator.Component )
+			local Page = GetComponentPanel( Operator.Component )
 
 			local Signature = string.format( "%s(%s)", Operator.Name, NamePerams( Operator.Input, Operator.InputCount, Operator.UsesVarg ) )
 				
@@ -553,7 +505,7 @@ function EXPADV.Editor.OpenHelper( )
 	-- METHODS:
 
 		for Sig, Operator in pairs( METHOD_QUEUE ) do
-			local ClassPage = Frame:GetClassPanel( Operator.Input[1] )
+			local ClassPage = GetClassPanel( Operator.Input[1] )
 
 			local Inputs = table.Copy( Operator.Input )
 			local Signature = string.format( "%s.%s(%s)", EXPADV.TypeName( table.remove( Inputs, 1 ) ), Operator.Name, NamePerams( Inputs, Operator.InputCount, Operator.UsesVarg ) )
@@ -562,7 +514,7 @@ function EXPADV.Editor.OpenHelper( )
 			BrowserSheet:GetMethodSheet( ):AddLine( GetAvalibility(Operator), EXPADV.TypeName( Operator.Return or "" ) or "Void", Signature, Operator.Description )	
 		
 			if Operator.Component then
-				local Page = Frame:GetComponentPanel( Operator.Component )
+				local Page = GetComponentPanel( Operator.Component )
 				Page:GetMethodSheet( ):AddLine( GetAvalibility(Operator), EXPADV.TypeName( Operator.Return or "" ) or "Void", Signature, Operator.Description )	
 			end
 		end
@@ -570,7 +522,7 @@ function EXPADV.Editor.OpenHelper( )
 	-- EVENTS:
 
 		for _, Event in pairs( EXPADV.Events ) do
-			local Page = Frame:GetComponentPanel( Event.Component )
+			local Page = GetComponentPanel( Event.Component )
 
 			local Signature = string.format( "%s(%s)", Event.Name, NamePerams( Event.Input, Event.InputCount, false ) )
 						
@@ -586,7 +538,7 @@ function EXPADV.Editor.OpenHelper( )
 		for Short, Panel in pairs( ClassPanels ) do
 
 			local Class = EXPADV.GetClass(Short)
-			local Page = Frame:GetClassPanel( Short )
+			local Page = GetClassPanel( Short )
 
 			if !Class or !Page then
 				continue
@@ -597,7 +549,7 @@ function EXPADV.Editor.OpenHelper( )
 			Page:GetInfoSheet( ):AddLine( "Component", Class.Component and Class.Component.Name or "Core" )
 			Page:GetInfoSheet( ):AddLine( "Avalibility", GetAvalibility( Class ) )
 
-			local ComponentNode = Frame:GetComponentNode( Class.Component, true )
+			local ComponentNode = GetComponentNode( Class.Component, true )
 
 			if !ComponentNode.ClassNode then
 				ComponentNode.ClassNode = ComponentNode:AddNode( "Classes" )
@@ -608,23 +560,23 @@ function EXPADV.Editor.OpenHelper( )
 			Node:SetIcon( "fugue/block.png" )
 
 			function Node:DoClick( )
-				Frame:SetActiveClassPage( Short )
+				SetActiveClassPage( Short )
 			end
 
 			local Node = RootClassNode:AddNode( Class.Name )
 			Node:SetIcon( "fugue/block.png" )
 
 			function Node:DoClick( )
-				Frame:SetActiveClassPage( Short )
+				SetActiveClassPage( Short )
 			end
 		end
 
-	-- SEARCH (Yes Divran, I liked your search box)
-		
-		local SearchBox = vgui.Create( "DTextEntry", Frame )
+	-- Search
+		local SearchBox = vgui.Create( "DTextEntry", TabSheet )
 		SearchBox:SetWide( 150 )
 		SearchBox:SetValue( "Search..." )
-		SearchBox:DockMargin( 2, 2, 2, 0 )
+		SearchBox:DockMargin( 2, 2, 2, 2 )
+		SearchBox:Dock( BOTTOM )
 
 		function SearchBox:OnGetFocus( )
 			if self:GetValue() == "Search..." then
@@ -669,15 +621,6 @@ function EXPADV.Editor.OpenHelper( )
 				Frame.ActivePage:Search( SearchQuery )
 			end
 		end
-
-	-- LAYOUT:
-
-		function Frame:PerformLayout( )
-			SearchBox:SetPos( Frame:GetWide( ) - SearchBox:GetWide( ) - 5, 28 )
-		end
-
-	-- INITALIZE
-
-		Frame:SetActiveComponentPage( "core" )
 end
 
+hook.Add( "Expadv.AddMenuTabs", "expadv.manual", EXPADV.AddHelperTab )

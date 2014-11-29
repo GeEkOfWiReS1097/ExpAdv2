@@ -38,9 +38,7 @@ function PANEL:Init( )
 	self:SetSize( cookie.GetNumber( "eaeditor_w", math.min( 1000, ScrW( ) * 0.8 ) ), cookie.GetNumber( "eaeditor_h", math.min( 800, ScrH( ) * 0.8 ) ) )
 	self:SetPos( cookie.GetNumber( "eaeditor_x", ScrW( ) / 2 - self:GetWide( ) / 2 ), cookie.GetNumber( "eaeditor_y", ScrH( ) / 2 - self:GetTall( ) / 2 ) )
 
-	self.TabHolder = self:Add( "DPropertySheet" )
-	self.TabHolder:Dock( FILL )
-	self.TabHolder:DockMargin( 5, 5, 5, 5 )
+	self.TabHolder = vgui.Create( "DPropertySheet" )
 	self.TabHolder:SetFadeTime( 0 )
 	timer.Simple( 0.1, function( )
 		if self:OpenOldTabs( ) then return end 
@@ -77,7 +75,7 @@ function PANEL:Init( )
 	function self.TabHolder:SetActiveTab( active )
 		if ( self.m_pActiveTab == active ) then return end
 		if ( self.m_pActiveTab) then
-			self:GetParent( ):ChangeTab( self.m_pActiveTab, active )
+			self:GetParent( ):GetParent( ):ChangeTab( self.m_pActiveTab, active )
 			if ( self:GetFadeTime() > 0 ) then
 				self.animFade:Start( self:GetFadeTime( ), { OldTab = self.m_pActiveTab, NewTab = active } )
 			else
@@ -96,11 +94,34 @@ function PANEL:Init( )
 		RunConsoleCommand( "expadv_open_session", Session and Session.ID or 0 )
 	end
 	
+	self.LeftTabs = vgui.Create( "DPropertySheet" )
+	self.LeftTabs:SetFadeTime( 0 )
+
+	self.Divider = self:Add( "DHorizontalDivider" ) 
+	self.Divider:Dock( FILL )
+	self.Divider:DockMargin( 5, 5, 5, 5 )
+	self.Divider:SetLeft( self.LeftTabs )
+	self.Divider:SetRight( self.TabHolder )
+	self.Divider:SetLeftWidth( 0 )
+
+	function self.LeftTabs.SetActiveTab( Pnl, Tab )
+		DPropertySheet.SetActiveTab( Pnl, Tab )
+		self.Divider:SetLeftWidth( 200 )
+	end
+
+	function self.LeftTabs.CloseTab( Pnl, Tab, Remove )
+		DPropertySheet.CloseTab( Pnl, Tab, Remove )
+		if Pnl.Items > 0 then return end
+		self.Divider:SetLeftWidth( 0 )
+	end
+
 	self.ToolBar = self:Add( "EA_ToolBar" )
 	self.ToolBar:Dock( TOP )
 	self.ToolBar:DockMargin( 5, 5, 5, 0 )
 	self.ToolBar:SetTall( 30 )
 	
+	EXPADV.CallHook( "AddMenuTabs", self.LeftTabs, self.ToolBar )
+
 	self.ValidateButton = self:Add( "EA_Button" )
 	self.ValidateButton:Dock( BOTTOM )
 	self.ValidateButton:DockMargin( 5, 0, 5, 5 )
@@ -148,6 +169,7 @@ end
 function PANEL:GetCode( Tab )
 	Tab = Tab or self.TabHolder:GetActiveTab( )
 	if not Tab then return end
+	if not Tab:GetPanel( ).GetCode then return end
 	return Tab:GetPanel( ):GetCode( ), Tab.FilePath
 end
 
@@ -352,7 +374,11 @@ function PANEL:CloseTab( bSave, Tab )
 	if not ValidPanel( Tab ) then return end
 	
 	local Editor = Tab:GetPanel( )
-	
+
+	if !Tab.GetCode then
+		return self.TabHolder:CloseTab( Tab, false )
+	end
+
 	self:AutoSave( Tab )
 	
 	if bSave and Tab.FilePath and Tab.FilePath ~= "" then // Ask about this?
@@ -415,6 +441,7 @@ end
 
 function PANEL:SaveTempFile( Tab )
 	if not ValidPanel( Tab ) then return end
+	if not Tab:GetPanel( ).GetCode then return end
 	local Code = Tab:GetPanel( ):GetCode( )
 	local Path = "expadv2_temp/" .. util.CRC( Code ) .. ".txt"
 	MakeFolders( Path )

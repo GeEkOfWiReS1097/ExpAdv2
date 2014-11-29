@@ -47,7 +47,6 @@ function PANEL:Init( )
 	self:AddTabNamer( )
 	
 	self.btnOptions = self:SetupButton( "Options", Material( "fugue/gear.png" ), RIGHT )
-	self.btnHelp = self:SetupButton( "Open user manual", Material( "fugue/question.png" ), RIGHT )
 	self.btnWiki = self:SetupButton( "Visit the wiki", Material( "fugue/home.png" ), RIGHT )
 
 	self:AddInviteMenu( )
@@ -105,10 +104,6 @@ function PANEL:Init( )
 	
 	function self.btnOptions:DoClick( ) 
 		self:GetParent( ):OpenOptions( ) 
-	end 
-	
-	function self.btnHelp:DoClick( ) 
-		EXPADV.Editor.OpenHelper( ) 
 	end 
 	
 	function self.btnWiki:DoClick( )
